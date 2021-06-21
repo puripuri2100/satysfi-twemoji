@@ -1,0 +1,162 @@
+@require: base/list-ext
+@require: base/string
+
+@import: emoji_images/twemoji_graphics
+@import: data
+
+@import: ../svg2saty/satysfi/svg
+
+module TwEmoji :sig
+
+  val twemoji : length -> string -> (graphics list) list
+  direct \twemoji : [string] inline-cmd
+  val num-2-0x : int -> string
+
+end = struct
+
+open TwEmojiData
+
+  let num-2-0x n =
+    let-rec sub n str =
+      let a = n / 16 in
+      let b = n mod 16 in
+      let s =
+        match b with
+        | 0  -> `0`
+        | 1  -> `1`
+        | 2  -> `2`
+        | 3  -> `3`
+        | 4  -> `4`
+        | 5  -> `5`
+        | 6  -> `6`
+        | 7  -> `7`
+        | 8  -> `8`
+        | 9  -> `9`
+        | 10 -> `a`
+        | 11 -> `b`
+        | 12 -> `c`
+        | 13 -> `d`
+        | 14 -> `e`
+        | _  -> `f`
+      in
+      if a <= 0 then
+        s^str
+      else
+        sub a (s^str)
+    in
+    sub n ` `
+
+
+  let twemoji l s =
+    let point-list = string-explode s in
+    let-rec sub main-lst point-lst =
+      match point-lst with
+      | [] -> main-lst
+      | x::[] -> [x]::main-lst
+      | x::y::zs -> (
+        let normal = sub([x]::main-lst) (y::zs) in
+          %---- 肌の色
+          if is-person x then
+            if is-color y then
+              sub([x;y]::main-lst) zs
+            else
+              normal
+          %----
+        else
+          %---- 国旗
+          if is-alphabet x then
+            if is-alphabet y then
+              if is-national-flag x y then
+                sub([x;y]::main-lst) zs
+              else
+                normal
+            else
+              normal
+          else
+          %----
+            %---- 地域の旗
+            if is-black-flag x then
+              match (y::zs) with
+              | s1::s2::s3::s4::s5::cancel-tag::ss when is-area-flag (s1,s2,s3,s4,s5,cancel-tag) -> (
+                sub([x;s1;s2;s3;s4;s5;cancel-tag]::main-lst) ss
+              )
+              | _ -> normal
+            else
+            %----
+              %---- 四角
+              if is-square y then
+                if is-square-symbol x y then
+                  sub([x;y]::main-lst) zs
+                else
+                  normal
+              else
+                normal
+              %----
+      )
+    in
+    let-rec join-ZWJ main-lst point-lst-lst =
+      match point-lst-lst with
+      | [] -> main-lst
+      | x::[] -> (
+        if is-variation-selectors x then
+          match main-lst with
+          | [] -> [x]
+          | b::bs -> (List.append b x)::bs
+        else
+          [x]
+      )
+      | x::y::zs -> (
+        if is-ZWJ x then
+          match main-lst with
+          | [] -> join-ZWJ [x;y] zs
+          | b::bs -> join-ZWJ ((List.append b (List.append x y))::bs) zs
+        else
+          if is-variation-selectors x then
+            match main-lst with
+            | [] -> join-ZWJ [x] (y::zs)
+            | b::bs -> join-ZWJ ((List.append b x)::bs) (y::zs)
+          else
+            join-ZWJ (x::main-lst) (y::zs)
+      )
+    in
+    let f lst =
+      let join i s1 s2 =
+        if i <= 0 then
+          s2
+        else
+          s1 ^ `-` ^ s2
+      in
+      let point-s =
+        lst
+        |> List.map num-2-0x
+        |> List.fold-lefti join ` `
+      in
+      let svg-opt =
+        List.find (fun (pt, _) -> String.equal pt point-s) twemoji-list
+      in
+      match svg-opt with
+      | Some(_,(fl,svg)) -> Some(SVG2saty.make-graphics l fl svg)
+      | None -> None%abort-with-message point-s
+    in
+    point-list
+    |> sub []
+    |> List.reverse
+    |> join-ZWJ []
+    |> List.reverse
+    |> List.map f
+    |> List.show-opt
+
+
+  let-inline ctx \twemoji s =
+    let font-size = get-font-size ctx in
+    let size = 1mm *' (font-size /' 36mm) in
+    let f gr =
+      inline-graphics font-size font-size 0pt
+      (fun pt -> List.map (shift-graphics pt) gr)
+    in
+    s
+    |> twemoji size
+    |> List.map f
+    |> List.fold-left (++) inline-nil
+
+end

@@ -1,0 +1,22 @@
+@require: stdjabook
+
+@import: ../twemoji
+
+  let-inline \twemoji-lst lst =
+    {\twemoji(string-unexplode lst);}
+  in
+
+document (|
+  title = {test};
+  author = {\@puripuri2100};
+  show-title = false;
+  show-toc = false;
+|) '<
+  +p(TwEmoji.num-2-0x 324 |> embed-string);
+  +p(TwEmoji.num-2-0x 5423523424 |> embed-string);
+  +p(TwEmoji.num-2-0x 54235432 |> embed-string);
+  +p(TwEmoji.num-2-0x 0x1F1F0 |> embed-string);
++p{\twemoji(`😇`);}
++p{\twemoji(`👼`);}
++p{\twemoji-lst[0x1F385;0x1F3FB;0x1F3C3;0x1F3FF;0x200D;0x2642;0xFE0F;0x1F469;0x1F3FB;0x200D;0x1F91D;0x200D;0x1F468;0x1F3FD];}
+>
